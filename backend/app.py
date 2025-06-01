@@ -4,6 +4,7 @@ import os
 import uuid
 import logging
 import time
+from werkzeug.utils import secure_filename
 
 from ocr.hindi_ocr import perform_hindi_ocr
 from qa.question_answer import qa_all
@@ -13,7 +14,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Configure CORS
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:5173",  # Local development
+            "https://*.vercel.app",   # Vercel deployments
+            os.getenv("FRONTEND_URL", "")  # Custom frontend URL
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
