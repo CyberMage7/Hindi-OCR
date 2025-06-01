@@ -4,7 +4,6 @@ import os
 import uuid
 import logging
 import time
-from werkzeug.utils import secure_filename
 
 from ocr.hindi_ocr import perform_hindi_ocr
 from qa.question_answer import qa_all
@@ -48,18 +47,11 @@ def ocr_endpoint():
         return jsonify({'error': 'No file selected'}), 400
     
     if file and allowed_file(file.filename):
-        # Generate unique filename
-        filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4()}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        
         try:
-            file.save(filepath)
-            logger.info(f"Image saved to {filepath}")
+            logger.info("Starting OCR process on uploaded file")
             
-            # Perform OCR on the image
-            logger.info("Starting OCR process")
-            extracted_text = perform_hindi_ocr(filepath)
+            # Perform OCR directly on the file object without saving
+            extracted_text = perform_hindi_ocr(file)
             logger.info(f"OCR completed in {time.time() - start_time:.2f} seconds")
             
             if not extracted_text or extracted_text.isspace():
@@ -109,11 +101,6 @@ def ocr_endpoint():
                 'error': 'An error occurred during processing.',
                 'message': str(e)
             }), 500
-        finally:
-            # Clean up the uploaded file
-            if os.path.exists(filepath):
-                os.remove(filepath)
-                logger.info(f"Removed temp file {filepath}")
     
     logger.warning(f"Invalid file format: {file.filename}")
     return jsonify({'error': 'Invalid file format. Allowed formats are: ' + ', '.join(ALLOWED_EXTENSIONS)}), 400

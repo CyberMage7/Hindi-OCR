@@ -206,53 +206,37 @@ def use_tesseract_for_hindi(image_dict):
         logger.error(f"Error using Tesseract: {str(e)}")
         return None
 
-def try_google_cloud_vision(image_path):
-    """Try using Google Cloud Vision API for OCR if credentials are available"""
-    try:
-        # Check if Google Cloud credentials exist
-        if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') is None:
-            logger.info("Google Cloud credentials not found, skipping Vision API")
-            return None
-            
-        from google.cloud import vision
-        
-        logger.info("Using Google Cloud Vision API for OCR")
-        client = vision.ImageAnnotatorClient()
-        
-        with open(image_path, 'rb') as image_file:
-            content = image_file.read()
-            
-        image = vision.Image(content=content)
-        response = client.text_detection(image=image)
-        
-        if response.error.message:
-            logger.warning(f"Google Vision API error: {response.error.message}")
-            return None
-            
-        text = response.text_annotations[0].description if response.text_annotations else ""
-        return text
-    except ImportError:
-        logger.info("Google Cloud Vision library not installed")
-        return None
-    except Exception as e:
-        logger.error(f"Error using Google Cloud Vision: {str(e)}")
-        return None
-
-def perform_hindi_ocr(image_path):
-    """Main function to perform Hindi OCR using multiple methods"""
-    logger.info(f"Starting OCR on image: {image_path}")
+def perform_hindi_ocr(image_input):
+    """Main function to perform Hindi OCR using multiple methods
+    
+    Args:
+        image_input: Can be either a file path (string) or a file object (from Flask upload)
+    """
+    logger.info(f"Starting OCR on image input: {type(image_input)}")
     
     try:
-        # Try Google Cloud Vision first if available (most accurate for Hindi)
-        gcv_text = try_google_cloud_vision(image_path)
-        if gcv_text and len(gcv_text) > 5 and not all(c.isdigit() or c.isspace() for c in gcv_text):
-            logger.info("Successfully extracted text using Google Cloud Vision")
-            return gcv_text
+        # Handle file object vs file path
+        if hasattr(image_input, 'read'):
+            # It's a file object (from Flask upload)
+            logger.info("Processing file object")
+            
+            # Reset file pointer and read image data
+            image_input.seek(0)
+            image_data = image_input.read()
+            
+            # Convert file data to OpenCV image
+            nparr = np.frombuffer(image_data, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+        else:
+            # It's a file path
+            logger.info(f"Processing file path: {image_input}")
+            
+            # Read the image from file path
+            image = cv2.imread(image_input)
         
-        # Read the image
-        image = cv2.imread(image_path)
         if image is None:
-            logger.error(f"Failed to read image at {image_path}")
+            logger.error("Failed to read/decode image")
             return "Error: Could not read the image file."
         
         # Enhance the image for Hindi OCR

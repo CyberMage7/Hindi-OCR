@@ -30,3 +30,4 @@ transformers==4.41.1
 indic-nlp-library==0.92
 sentencepiece==0.2.0
 tokenizers==0.19.1
+protobuf==4.25.3
